@@ -8,3 +8,6 @@ this requires setup at Laybuy, please contact merchant@laybuy.com for assistance
 Currencies can be assigned to diffreenct stores for a Multi Currency site, use the store selector and disable 'use default'
 for the Laybuy details. Each currency requires its own Merchant ID and API key for both sandbox and live.
 
+Installation:
+
+modman clone git@github.com:Magebinary/Magento-M1-Laybuy.git
