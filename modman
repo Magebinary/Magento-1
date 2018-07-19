@@ -7,3 +7,4 @@ app/etc/modules/Laybuy_Payments.xml                         app/etc/modules/Layb
 
 # app/design
 app/design/frontend/base/default/template/laybuy             app/design/frontend/base/default/template/laybuy
+app/design/adminhtml/base/default/template/laybuy         app/design/adminhtml/default/default/template/laybuy
