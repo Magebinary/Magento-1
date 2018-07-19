@@ -13,70 +13,16 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
     const LAYBUY_LOG_FILENAME = 'laybuy_debug.log';
 
     protected $_code = 'laybuy_payments'; // this modules name in its config.xml
-
-    protected $_isInitializeNeeded = TRUE;
-
     protected $_formBlockType = 'payments/payment_form';
-
     protected $_infoBlockType = 'payments/payment_info';
-
-    /**
-     * this should probably be true if you're using this
-     * method to take payments
-     */
-    protected $_isGateway = TRUE;
-
-    /**
-     * can this method authorise?
-     */
-    protected $_canAuthorize = TRUE;
-
-    /**
-     * can this method capture funds?
-     */
-    protected $_canCapture = TRUE;
-
-    /**
-     * can we capture only partial amounts?
-     */
-    protected $_canCapturePartial = FALSE;
-
-    /**
-     * can this method refund?
-     */
-    protected $_canRefund = FALSE;
-
-    /**
-     * can this method void transactions?
-     */
-    protected $_canVoid = TRUE;
-
-    protected $_canCancelInvoice = TRUE;
-
-    /**
-     * can admins use this payment method?
-     */
-    protected $_canUseInternal = FALSE;
-
-    /**
-     * show this method on the checkout page
-     */
-    protected $_canUseCheckout = TRUE;
-
-    /**
-     * available for multi shipping checkouts?
-     */
-    protected $_canUseForMultishipping = FALSE;
-
-    /**
-     * can this method save cc info for later use?
-     */
-    protected $_canSaveCc = FALSE;
-
-    /**
-     * @var bool
-     */
-    protected $laybuy_sandbox = TRUE;
+    protected $_isGateway                   = false;
+    protected $_canAuthorize                = false;
+    protected $_canCapture                  = true;
+    protected $_canRefund                   = false;
+    protected $_canRefundInvoicePartial     = false;
+    protected $_canFetchTransactionInfo     = false;
+    protected $_canUseCheckout              = true;
+    protected $_canVoid                     = false;
 
     /**
      * @var string
@@ -92,21 +38,18 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
 
     protected $endpoint;
 
-    /**
-     * @var $order  \Mage_Sales_Model_Order
-     */
-    protected $order = NULL;
-
     protected $errors = [];
 
     public function capture(Varien_Object $payment, $amount)
     {
-        //TODO: somehow this is not capturing the transcation details. capture function is not called at all.
-        Mage::log('** Capturing **');
-        $session    = Mage::getSingleton('checkout/session');
-        // $payment->setLastTransId($response['transactionId'])
-        //         ->setTransactionId($response['transactionId'])
-        //         ->setAdditionalData(serialize($response));
+        $session = Mage::getSingleton('checkout/session');
+        $response   = $session->getResponse();
+        $session->unsetData('response');
+        // Prevent Session Abuse
+        $payment->setLastTransId($response['orderId'])
+                ->setTransactionId($response['orderId'])
+                ->setAdditionalData(serialize($response));
+        Mage::log(Varien_Debug::backtrace(true));
         return $this;
     }
 

@@ -1,0 +1,16 @@
+<p><?php echo $this->getMethod()->getTitle() ?></p>
+<?php if (is_array($_specificInfo = unserialize($this->getInfo()->getAdditionalData()))):?>
+<table class="payment-info">
+    <?php foreach ($_specificInfo as $_label => $_value):?>
+        <tr>
+        <?php $name = ucfirst(preg_replace('/(?<!\ )[A-Z]/', ' $0', $_label)) ?>
+        <th><?php echo $this->escapeHtml($name) ?></th>
+        <td><?php echo nl2br(implode($this->getValueAsArray($_value, true), "\n"))?></td>
+        </tr>
+    <?php endforeach; ?>
+</table>
+<?php else: ?>
+    <p><?php echo unserialize($this->getInfo()->getAdditionalData()); ?></p>
+<?php endif;?>
+
+<?php echo $this->getChildHtml()?>

@@ -117,6 +117,8 @@ class Laybuy_Payments_PaymentController extends Mage_Core_Controller_Front_Actio
             Mage::throwException('Transcation DECLINED');
         }
 
+        $apiResponse->token = $token;
+
         return $apiResponse;
     }
 
@@ -131,7 +133,7 @@ class Laybuy_Payments_PaymentController extends Mage_Core_Controller_Front_Actio
         try {
             $apiResponse = $this->_validateResponse($request);
             // Pass Response To Capture
-            $session->setResponse($apiResponse);
+            $session->setResponse(get_object_vars($apiResponse));
             $session->setIsPayment(true);
             // Check Response Status
             return $this->_forward('placeOrder');
