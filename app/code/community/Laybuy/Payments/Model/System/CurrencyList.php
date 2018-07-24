@@ -8,7 +8,7 @@ class Laybuy_Payments_Model_System_CurrencyList extends Mage_Adminhtml_Model_Sys
     protected $_options;
     
     
-    public function toOptionArray() {
+    public function toOptionArray($isMultiselect) {
         
         if (!$this->_options) {
             $payments = new Laybuy_Payments_Model_Payments();
