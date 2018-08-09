@@ -40,6 +40,11 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
 
     protected $errors = [];
 
+    /**
+     * @var boolean
+     */
+    protected $_debug = false;
+
     public function capture(Varien_Object $payment, $amount)
     {
         $session = Mage::getSingleton('checkout/session');
@@ -49,13 +54,18 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
         $payment->setLastTransId($response['orderId'])
                 ->setTransactionId($response['orderId'])
                 ->setAdditionalData(serialize($response));
-        Mage::log(Varien_Debug::backtrace(true));
+
+        if ($this->_debug) {
+            Mage::log('Start Capture');
+            Mage::log(Varien_Debug::backtrace(true));
+        }
         return $this;
     }
 
     // main entry point
     // this is called before we jump
-    public function getCheckoutRedirectUrl() {
+    public function getCheckoutRedirectUrl()
+    {
         // from the frontend tag in the modules config.xml
         $this->dbg(__METHOD__ . "  start order-id: " . ((isset($this->order)) ? $this->order->getId() : ' -not set- '));
 
@@ -64,7 +74,11 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
         /** @var  $quote \Mage_Sales_Model_Quote */
         $quote = $this->getInfoInstance()->getQuote();
 
-        $reserved_order_id = $quote->getReservedOrderId();
+        $reserved_order_id = $quote->reserveOrderId()->getReservedOrderId();
+
+        if ($this->_debug) {
+            Mage::log('Reserved ID: ' . $reserved_order_id);
+        }
 
         $this->order = Mage::getModel('sales/order')->loadByIncrementId($reserved_order_id);
 
