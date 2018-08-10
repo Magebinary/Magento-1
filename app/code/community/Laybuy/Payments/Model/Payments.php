@@ -163,7 +163,7 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
         $order->returnUrl = Mage::getUrl('laybuypayments/payment/response', ['_secure' => TRUE]);
 
         // BS $order->merchantReference = $quote->getId();
-        $order->merchantReference = $quote->getReservedOrderId() . '_' . uniqid();
+        $order->merchantReference = $quote->getReservedOrderId();
 
         $order->customer = new stdClass();
         $order->customer->firstName = $quote->getCustomerFirstname();
