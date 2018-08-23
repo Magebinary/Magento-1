@@ -124,8 +124,59 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
         return $this->getLaybuyRedirectUrl($laybuy_order);
     }
 
-    private function _makeLaybuyOrder() {
+    /**
+     * @param  Mage_Sales_Model_Quote $quote
+     * @return array
+     */
+    protected function _getQuoteItems($quote)
+    {
+        $items = [];
+        $item = new Varien_Object();
 
+        $collection = $quote->getItemsCollection();
+        foreach ($collection as $_item) {
+            $item->setId($_item->getSku());
+            $item->setDescription($_item->getName());
+            $item->setQuantity($_item->getQty());
+            // Fix Amasty Shopping cart rule
+            ($_item->getIsPromo()) ? $item->setPrice($_item->getPrice()) : $item->setPrice($_item->getProduct()->getFinalPrice()); ;
+            $items[] = $item->getData();
+        }
+        $items = $this->_appendShippingFees($quote, $items);
+        return $items;
+    }
+
+    /**
+     * @param  Mage_Sales_Model_Quote $quote
+     * @param  array $items
+     * @return array
+     */
+    protected function _appendShippingFees($quote, $items)
+    {
+        $shippingAddress = $quote->getShippingAddress();
+        $shippingMethod = $shippingAddress->getShippingMethod();
+        $item = new Varien_Object();
+        $item->setId($shippingMethod);
+        $item->setQuantity(1);
+        $item->setDescription($shippingMethod);
+        $item->setPrice($shippingAddress->getShippingInclTax());
+
+        $items[] = $item->getData();
+        return $items;
+    }
+
+    /**
+     * @param  string  $merchantReference
+     * @return boolean
+     */
+    public function isDuplicateMerchantReference($merchantReference)
+    {
+        return Mage::getSingleton('checkout/session')->getLaybuyMerchantReference() == $merchantReference;
+    }
+
+    protected function _makeLaybuyOrder()
+    {
+        $helper = Mage::helper('laybuy_payments');
         $session = Mage::getSingleton('checkout/session');
 
         /* @var $quote \Mage_Sales_Model_Quote */
@@ -141,8 +192,6 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
         if (!$address) {
             $address = $customer->getPrimaryBillingAddress();
         }
-
-        //Mage::log($address);
 
         /* @var $shipping \Mage_Customer_Model_Address */
         $shipping = $customer->getShippingAddress();
@@ -161,9 +210,12 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
         }
 
         $order->returnUrl = Mage::getUrl('laybuypayments/payment/response', ['_secure' => TRUE]);
+        $merchantReference = $quote->getReservedOrderId();
 
-        // BS $order->merchantReference = $quote->getId();
-        $order->merchantReference = $quote->getReservedOrderId();
+        if ($this->isDuplicateMerchantReference($merchantReference)) {
+            $merchantReference = $helper->prefix($merchantReference, $helper->generateUID());
+        }
+        $order->merchantReference = $merchantReference;
 
         $order->customer = new stdClass();
         $order->customer->firstName = $quote->getCustomerFirstname();
@@ -190,109 +242,17 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
         $order->billingAddress->postcode = $address->getPostcode();
         $order->billingAddress->country = Mage::app()->getLocale()->getCountryTranslation($address->getCountry_id());
 
-        $order->items = [];
-
-        $totalOrderValue = 0;
-
-        // make the order more like a normal gateway txn, we just make
-        // an item that match the total order rather than try to get the orderitem to match the grandtotal
-        // as there is lot magento will let modules do to the total compared to a simple calc of
-        // the cart items
-
-        $order->items[0] = new stdClass();
-        $order->items[0]->id = 1;
-        $order->items[0]->description = $this->getConfigData('order_description_text') ? $this->getConfigData('order_description_text') : "Purchase from " . Mage::app()->getStore()->getName();
-        $order->items[0]->quantity = 1;
-        $order->items[0]->price = $quote->getGrandTotal(); // this can nerver to incorrect now
-
-        // foreach ($quote->getAllVisibleItems() as $id => $item) {
-        //
-        //     /* @var @item \Mage_Sales_Model_Quote_Item */
-        //
-        //     $order->items[$id]              = new stdClass();
-        //     $order->items[$id]->id          = $item->getId();
-        //     $order->items[$id]->description = $item->getName();
-        //     $order->items[$id]->quantity    = $item->getQty();
-        //     //$order->items[$id]->price = $item->getPrice();
-        //
-        //
-        //     Mage::log(__METHOD__ . 'ITEM [' . $item->getId() . ']: price: ' . $item->getPrice() . " getPriceInclTax:" . $item->getPriceInclTax() . " getFinalPrice:" . $item->getFinalPrice() . "
-        // getDiscountAmount:" . $item->getDiscountAmount());
-        //
-        //
-        //     if ($item->getDiscountAmount()) {
-        //         $price = $item->getPriceInclTax() - $item->getDiscountAmount();
-        //     }
-        //     else {
-        //         $price = $item->getPriceInclTax();
-        //     }
-        //
-        //     $order->items[$id]->price = $price;
-        //     $totalOrderValue          += $price;
-        //
-        // }
-
-        //Mage::log(__METHOD__ . ' items total: ' . $totalOrderValue);
-        //$totalOrderValue += $shipping->getShippingInclTax(); // add shipping to total order value.
-
-        // if (floatval($totalOrderValue) < floatval($quote->getGrandTotal())) {
-        //     Mage::log(__METHOD__ . ' items total is LESS than getGrandTotal:  ' . $totalOrderValue . " < " . $quote->getGrandTotal());
-        //     Mage::log('Add discount line...');
-        //
-        //     $id                             = count($order->items); // count starts at 1
-        //     $order->items[$id]              = new stdClass();
-        //     $order->items[$id]->id          = 'DISCOUNT';
-        //     $order->items[$id]->description = 'Discount';
-        //     $order->items[$id]->quantity    = 1;
-        //     $order->items[$id]->price       = floatval($quote->getGrandTotal()) - floatval($totalOrderValue); // a make a negative value
-        // }
-        //
-        // if ($shipping->getShippingInclTax()) {
-        //     $next                             = count($order->items); // count starts at 1
-        //     $order->items[$next]              = new stdClass();
-        //     $order->items[$next]->id          = 'SHIPPING';
-        //     $order->items[$next]->description = $shipping->getShippingDescription();
-        //     $order->items[$next]->quantity    = 1;
-        //     $order->items[$next]->price       = $shipping->getShippingInclTax();
-        // }
-
+        $order->items = $this->_getQuoteItems($quote);
         return $order;
-
     }
 
-    public function isAvailable($quote = NULL) {
-
+    public function isAvailable($quote = NULL)
+    {
         return $this->getConfigData('active') ? TRUE : FALSE;
     }
 
-    /**
-     * Instantiate state and set it to state object
-     *
-     * @param string $paymentAction
-     * @param        Varien_Object
-     *
-     * @return void
-     */
-    // public function initialize($paymentAction, $stateObject) {
-    //     // don't set these here this rolls over on return
-    //     //$stateObject->setState($this->getConfigData('unpaid_order_status'));
-    //     //$stateObject->setStatus($this->getConfigData('unpaid_order_status'));
-    //     //$stateObject->setIsNotified(FALSE);
-    //     $this->dbg(__METHOD__ . "  start order-id: " . ((isset($this->order)) ? $this->order->getId() : ' -not set- '));
-    //     $this->dbg(__METHOD__ . " START STATUS " . $stateObject->getStatus());
-
-    //     $stateObject->setState($this->getConfigData('unpaid_order_status'));
-    //     $stateObject->setStatus($this->getConfigData('unpaid_order_status'));
-
-    //     $this->dbg(__METHOD__ . " STATUS " . $stateObject->getStatus());
-    //     $this->dbg(__METHOD__ . " STATE  " . $stateObject->setState());
-    //     $this->dbg(__METHOD__ . ' INITIALISED');
-    //     $this->dbg(__METHOD__ . " end order-id: " . ((isset($this->order)) ? $stateObject->order->getId() : ' -not set- '));
-
-    //     return $this;
-    // }
-
-    private function setupLaybuy() {
+    private function setupLaybuy()
+    {
         $this->dbg(__METHOD__ . ' sandbox? ' . $this->getConfigData('sandbox_mode'));
         $this->dbg(__METHOD__ . ' sandbox_merchantid? ' . $this->getConfigData('sandbox_merchantid'));
 
@@ -312,8 +272,8 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
 
     }
 
-    private function getRestClient() {
-
+    private function getRestClient()
+    {
         if (is_null($this->laybuy_merchantid)) {
             // ?? just do it anyway?
             $this->setupLaybuy();
@@ -322,9 +282,7 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
         try {
             $this->restClient = new Zend_Rest_Client($this->endpoint);
             $this->restClient->getHttpClient()->setAuth($this->laybuy_merchantid, $this->laybuy_apikey, Zend_Http_Client::AUTH_BASIC);
-
         } catch (Exception $e) {
-
             Mage::logException($e);
             Mage::helper('checkout')->sendPaymentFailedEmail($this->getOnepage()->getQuote(), $e->getMessage());
 
@@ -335,23 +293,22 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
             $result['error_messages'] = $this->__('[Laybuy connect] There was an error processing your order. Please contact us or try again later.');
             // TODOD this error needs to go back to the user
         }
-
         return $this->restClient;
-
     }
 
-    private function getLaybuyRedirectUrl($order) {
-
+    private function getLaybuyRedirectUrl($order)
+    {
         if (is_null($this->restClient)) {
             $this->getRestClient();
         }
 
         $client = $this->restClient;
 
+        Mage::getSingleton('checkout/session')->setLaybuyMerchantReference($order->merchantReference);
         // wrap in try?
         $response = $client->restPost('/order/create', json_encode($order));
-
         $body = json_decode($response->getBody());
+
         $this->dbg(print_r($body, 1));
 
         /* stdClass Object
