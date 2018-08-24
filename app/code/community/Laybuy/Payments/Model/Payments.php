@@ -1,6 +1,7 @@
 <?php
 
-class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract {
+class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract
+{
 
     const LAYBUY_LIVE_URL = 'https://api.laybuy.com';
 
@@ -209,11 +210,15 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract 
             $order->currency = "NZD";
         }
 
-        $order->returnUrl = Mage::getUrl('laybuypayments/payment/response', ['_secure' => TRUE]);
-        $merchantReference = $quote->getReservedOrderId();
+        $order->returnUrl = Mage::getUrl('laybuypayments/payment/response', ['_secure' => true]);
+        $merchantReference = $quote->reserveOrderId()->getReservedOrderId();
 
         if ($this->isDuplicateMerchantReference($merchantReference)) {
             $merchantReference = $helper->prefix($merchantReference, $helper->generateUID());
+        }
+
+        if ($this->_debug) {
+            Mage::log($merchantReference);
         }
         $order->merchantReference = $merchantReference;
 
