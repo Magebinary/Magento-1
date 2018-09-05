@@ -90,7 +90,7 @@ class Laybuy_Payments_PaymentController extends Mage_Core_Controller_Front_Actio
     public function _validateResponse($request) {
         //TODO: some validation logic here.
         if ($request->getParam('status') !== 'SUCCESS') {
-            Mage::throwException('Laybuy transcation canceled');
+            Mage::throwException('You have canceled the payment at checkout. Please contact us for more assistance or select another payment method to complete checkout.');
         }
 
         $token = $this->getRequest()->getParam('token');
