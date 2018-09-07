@@ -11,8 +11,8 @@
  * Controller for the Laybuy Payment Process
  *
  */
-class Laybuy_Payments_PaymentController extends Mage_Core_Controller_Front_Action {
-
+class Laybuy_Payments_PaymentController extends Laybuy_Payments_Controller_Abstract
+{
     const LAYBUY_LIVE_URL = 'https://api.laybuy.com';
 
     const LAYBUY_SANDBOX_URL = 'https://sandbox-api.laybuy.com';
@@ -150,22 +150,10 @@ class Laybuy_Payments_PaymentController extends Mage_Core_Controller_Front_Actio
             return $this->_redirect('checkout/cart');
         }
         $session->unsIsPayment();
+
         try {
-            $order = $this->_initCheckout()->place();
-            // "last successful quote"
-            $quoteId = $this->_getQuote()->getId();
-
-            // prepare session to success or cancellation page
-            $session->clearHelperData();
-            $session->setLastQuoteId($quoteId)->setLastSuccessQuoteId($quoteId);
-
-            if ($order) {
-                $session->setLastOrderId($order->getId())
-                    ->setLastRealOrderId($order->getIncrementId());
-                $order->getSendConfirmation(null);
-                $order->sendNewOrderEmail();
-            }
-
+            $status = $this->_getOrderStatusAndMessage();
+            $this->placeOrder($status);
         } catch (Exception $e) {
             Mage::helper('checkout')->sendPaymentFailedEmail(
                 $this->_getQuote(),
@@ -176,6 +164,13 @@ class Laybuy_Payments_PaymentController extends Mage_Core_Controller_Front_Actio
         }
         $this->_redirect('checkout/onepage/success');
         return;
+    }
+
+    protected function _getOrderStatusAndMessage()
+    {
+        $status = new Varien_Object();
+        $status->setStatus(Mage_Sales_Model_Order::STATE_PROCESSING);
+        return $status;
     }
 
 
