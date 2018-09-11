@@ -208,7 +208,7 @@ abstract class Laybuy_Payments_Controller_Abstract extends Mage_Core_Controller_
 
         $quote->collectTotals();
 
-        $checkout = Mage::getModel('laybuy_payments/checkout')->setQuote($quote)->setStatus($status);
+        $checkout = Mage::getModel('payments/checkout')->setQuote($quote)->setStatus($status);
 
         $checkout->saveOrder();
     }

@@ -25,69 +25,14 @@ class Laybuy_Payments_PaymentController extends Laybuy_Payments_Controller_Abstr
 
     protected $_checkout;
     protected $_quote;
-    /**
-     * Return checkout quote object
-     *
-     * @return Mage_Sales_Model_Quote
-     */
-    private function _getQuote()
-    {
-        if (!$this->_quote) {
-            $this->_quote = $this->_getCheckoutSession()->getQuote();
-        }
-        return $this->_quote;
-    }
 
     protected function _getCheckoutSession()
     {
         return Mage::getSingleton('checkout/session');
     }
 
-
-    /**
-     * Place the order and recurring payment profiles when customer returned from any gateways
-     * Until this moment all quote data must be valid
-     *
-     * @param string $token
-     * @param string $shippingMethodCode
-     */
-    public function place()
+    public function _validateResponse($request)
     {
-        $this->_quote->collectTotals();
-        $service = Mage::getModel('sales/service_quote', $this->_quote);
-        $service->submitAll();
-        $this->_quote->save();
-
-        /** @var $order Mage_Sales_Model_Order */
-        $order = $service->getOrder();
-        if (!$order) {
-            return;
-        }
-        return $this->_order = $order;
-    }
-
-        /**
-     * Instantiate quote and checkout
-     *
-     * @return Mage_Sales_Model_Checkout
-     * @throws Mage_Core_Exception
-     */
-    protected function _initCheckout()
-    {
-        $quote = $this->_getQuote();
-        if (!$quote->hasItems() || $quote->getHasError()) {
-            $this->getResponse()->setHeader('HTTP/1.1', '403 Forbidden');
-            Mage::throwException('Laybuy does not support processing orders with zero amount. To complete your purchase, proceed to the standard checkout process.');
-        }
-
-        $this->_quote->collectTotals();
-
-        $this->_quote->reserveOrderId()->save();
-
-        return $this;
-    }
-
-    public function _validateResponse($request) {
         //TODO: some validation logic here.
         if ($request->getParam('status') !== 'SUCCESS') {
             Mage::throwException('You have canceled the payment at checkout. Please contact us for more assistance or select another payment method to complete checkout.');

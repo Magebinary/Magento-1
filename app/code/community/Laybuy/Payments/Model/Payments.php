@@ -132,15 +132,14 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract
     protected function _getQuoteItems($quote)
     {
         $items = [];
-        $item = new Varien_Object();
-
         $collection = $quote->getItemsCollection();
         foreach ($collection as $_item) {
+            $item = new Varien_Object();
             $item->setId($_item->getSku());
             $item->setDescription($_item->getName());
             $item->setQuantity($_item->getQty());
             // Fix Amasty Shopping cart rule
-            ($_item->getIsPromo()) ? $item->setPrice($_item->getPrice()) : $item->setPrice($_item->getProduct()->getFinalPrice()); ;
+            ($_item->getIsPromo()) ? $item->setPrice($_item->getPrice()) : $item->setPrice($_item->getProduct()->getFinalPrice());
             $items[] = $item->getData();
         }
         $items = $this->_appendShippingFees($quote, $items);
@@ -247,8 +246,26 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract
         $order->billingAddress->postcode = $address->getPostcode();
         $order->billingAddress->country = Mage::app()->getLocale()->getCountryTranslation($address->getCountry_id());
 
-        $order->items = $this->_getQuoteItems($quote);
+        $order->items = [[
+            'id' => $this->getItemsSkuCombination($quote),
+            'description' => 'All items',
+            'quantity' => '1',
+            'price' => $quote->getGrandTotal()
+        ]];
+
+        // Temproray disable for fix vendor prices
+        // $order->items = $this->_getQuoteItems($quote);
         return $order;
+    }
+
+    public function getItemsSkuCombination($quote)
+    {
+        $id = '';
+
+        foreach ($quote->getItemsCollection() as $item) {
+            $id = '_' . $item->getSku();
+        }
+        return $id;
     }
 
     public function isAvailable($quote = NULL)
