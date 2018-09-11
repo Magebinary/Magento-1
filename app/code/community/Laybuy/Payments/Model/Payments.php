@@ -246,12 +246,14 @@ class Laybuy_Payments_Model_Payments extends Mage_Payment_Model_Method_Abstract
         $order->billingAddress->postcode = $address->getPostcode();
         $order->billingAddress->country = Mage::app()->getLocale()->getCountryTranslation($address->getCountry_id());
 
-        $order->items = [[
+        $order->items = [
+            [
             'id' => $this->getItemsSkuCombination($quote),
             'description' => 'All items',
             'quantity' => '1',
             'price' => $quote->getGrandTotal()
-        ]];
+            ]
+        ];
 
         // Temproray disable for fix vendor prices
         // $order->items = $this->_getQuoteItems($quote);

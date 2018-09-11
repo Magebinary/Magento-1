@@ -202,15 +202,23 @@ abstract class Laybuy_Payments_Controller_Abstract extends Mage_Core_Controller_
         return $isBackend;
     }
 
-    public function placeOrder($status)
+    public function clearShoppingCart()
     {
-        $quote = $this->_getQuote();
+        return Mage::getSingleton('checkout/cart')->truncate()->save();
+    }
 
-        $quote->collectTotals();
+    public function getOnepage()
+    {
+        return Mage::getSingleton('checkout/type_onepage');
+    }
 
-        $checkout = Mage::getModel('payments/checkout')->setQuote($quote)->setStatus($status);
+    public function placeOrder()
+    {
+        $this->getOnepage()->setQuote($this->_getQuote())->initCheckout();
+        $this->getOnepage()->getQuote()->collectTotals();
+        $this->getOnepage()->saveOrder();
 
-        $checkout->saveOrder();
+        return $this;
     }
 
     /**
@@ -240,21 +248,4 @@ abstract class Laybuy_Payments_Controller_Abstract extends Mage_Core_Controller_
         $url = str_replace('view/', "view/order_id/$orderId/", $url);
         return $url;
     }
-
-    protected function _createOrderForBackend($quoteId)
-    {
-        // Trigger capture method to set transaction data and place order
-        $quote = Mage::getModel('sales/quote')->load($quoteId);
-        $quote->collectTotals();
-        $service = Mage::getModel('sales/service_quote', $quote);
-        $service->submitAll();
-        $quote->save();
-
-        /* Get Order Id */
-        $incrementId = $quote->getData('reserved_order_id');
-
-        return $incrementId;
-    }
-
-    abstract protected function _getOrderStatusAndMessage();
 }

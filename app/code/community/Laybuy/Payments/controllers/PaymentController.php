@@ -26,6 +26,11 @@ class Laybuy_Payments_PaymentController extends Laybuy_Payments_Controller_Abstr
     protected $_checkout;
     protected $_quote;
 
+    /**
+     * @var array
+     */
+    protected $_apiResponse;
+
     protected function _getCheckoutSession()
     {
         return Mage::getSingleton('checkout/session');
@@ -68,18 +73,38 @@ class Laybuy_Payments_PaymentController extends Laybuy_Payments_Controller_Abstr
             // Pass Response To Capture
             $session->setResponse(get_object_vars($apiResponse));
             $session->setIsPayment(true);
-            // Check Response Status
-            return $this->_forward('placeOrder');
+
+            $this->_apiResponse = $apiResponse;
+
+            if ($this->_isPaymentSuccess()) {
+                return $this->_forward('placeOrder');
+            }
+
+            Mage::throwException($this->_getPaymentErrorMessages());
+
         } catch (Mage_Core_Exception $e) {
-            //Magento or payment error.
+            // magento or payment error
             $session->addError($e->getMessage());
             Mage::log($e->getTrace(), null, 'laybuy.log', true);
         } catch (Exception $e) {
-            //system error.
+            // system error
             $session->addError($e->getMessage());
             Mage::log($e->getTrace(), null, 'laybuy.log', true);
         }
-        $this->_redirect('checkout/cart');
+        return $this->_redirect('checkout/cart');
+    }
+
+    protected function _isPaymentSuccess()
+    {
+        if ($this->_apiResponse->result == 'SUCCESS') {
+            return true;
+        }
+        return false;
+    }
+
+    protected function _getPaymentErrorMessages()
+    {
+        return $this->_apiResponse->error;
     }
 
         /**
@@ -97,8 +122,10 @@ class Laybuy_Payments_PaymentController extends Laybuy_Payments_Controller_Abstr
         $session->unsIsPayment();
 
         try {
-            $status = $this->_getOrderStatusAndMessage();
-            $this->placeOrder($status);
+
+            $this->placeOrder();
+            $this->clearShoppingCart();
+
         } catch (Exception $e) {
             Mage::helper('checkout')->sendPaymentFailedEmail(
                 $this->_getQuote(),
